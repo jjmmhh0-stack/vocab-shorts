@@ -1,0 +1,28 @@
+name: Render Vocab Shorts
+
+on:
+  repository_dispatch:
+    types: [make-shorts]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-nanum
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install edge-tts
+      - env:
+          SHORTS_TITLE: ${{ github.event.client_payload.title }}
+          SHORTS_WORD: ${{ github.event.client_payload.word }}
+          SHORTS_MEANING: ${{ github.event.client_payload.meaning }}
+          SHORTS_EXAMPLE: ${{ github.event.client_payload.example }}
+          SHORTS_EXAMPLE_KO: ${{ github.event.client_payload.example_ko }}
+        run: python make_shorts.py
+      - run: |
+          curl -X POST "${{ github.event.client_payload.webhook_url }}" \
+            -F "video=@output.mp4" \
+            -F "row_number=${{ github.event.client_payload.row_number }}" \
+            -F "title=${{ github.event.client_payload.title }}"
