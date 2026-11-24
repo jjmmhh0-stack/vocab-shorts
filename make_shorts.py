@@ -1,16 +1,20 @@
 import os, asyncio, subprocess
+from PIL import Image, ImageEnhance
 import edge_tts
 
-TITLE = os.environ.get("SHORTS_TITLE", "하루 10초 필수 영단어")
-WORD = os.environ.get("SHORTS_WORD", "inevitable")
-MEANING = os.environ.get("SHORTS_MEANING", "피할 수 없는, 필연적인")
-EXAMPLE = os.environ.get("SHORTS_EXAMPLE", "Change is inevitable.")
-EXAMPLE_KO = os.environ.get("SHORTS_EXAMPLE_KO", "변화는 피할 수 없다.")
+TITLE = os.environ.get("SHORTS_TITLE", "10초 영단어 #Shorts")
+HOOK = os.environ.get("SHORTS_HOOK", "나한테 왜 이렇게 깐깐하게 구냐고 할 때")
+WORD = os.environ.get("SHORTS_WORD", "nitpicky")
+PRON = os.environ.get("SHORTS_PRON", "닛피키")
+MEANING = os.environ.get("SHORTS_MEANING", "사소한 것에 얽매이는, 몹시 까다로운")
+EXAMPLE = os.environ.get("SHORTS_EXAMPLE", "Don't be so nitpicky about small details.")
+EXAMPLE_PRON = os.environ.get("SHORTS_EXAMPLE_PRON", "돈트 비 소 닛피키 어바웃 스몰 디테일즈")
+EXAMPLE_KO = os.environ.get("SHORTS_EXAMPLE_KO", "작은 세부 사항까지 너무 까다롭게 굴지 마세요")
 
 VOICE_EN = "en-US-JennyNeural"
 VOICE_KO = "ko-KR-SunHiNeural"
 
-async def generate_tts(text, voice, raw_file, final_file, rate="+5%", end_pad=0.18):
+async def generate_tts(text, voice, raw_file, final_file, rate="+8%", end_pad=0.15):
     await edge_tts.Communicate(text, voice, rate=rate, volume="+12%").save(raw_file)
     af = f"silenceremove=start_periods=1:start_silence=0.05:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_silence=0.05:start_threshold=-45dB,areverse,apad=pad_dur={end_pad}"
     subprocess.run(["ffmpeg", "-y", "-i", raw_file, "-af", af, "-c:a", "libmp3lame", "-q:a", "2", final_file], check=True)
@@ -27,55 +31,65 @@ def wrap_text(text, max_chars=22):
     if current: lines.append(current)
     return "\n".join(lines)
 
+def prepare_bg(out_path="final_bg.jpg"):
+    for fname in ["bg.jpg", "bg.png", "bg.jpeg"]:
+        if os.path.exists(fname):
+            img = Image.open(fname).convert("RGB").resize((1080, 1920), Image.LANCZOS)
+            ImageEnhance.Brightness(img).enhance(0.75).save(out_path, quality=92)
+            print(f"사용자 배경 적용 완료: {fname}", flush=True)
+            return
+    Image.new("RGB", (1080, 1920), color=(15, 23, 42)).save(out_path)
+
 async def main():
-    await generate_tts(f"{WORD}.", VOICE_EN, "w1_raw.mp3", "w1.mp3", rate="+0%", end_pad=0.25)
-    await generate_tts(f"{MEANING}.", VOICE_KO, "m1_raw.mp3", "m1.mp3", rate="+12%", end_pad=0.25)
-    await generate_tts(f"{WORD}.", VOICE_EN, "w2_raw.mp3", "w2.mp3", rate="-5%", end_pad=0.25)
-    await generate_tts(f"{EXAMPLE}", VOICE_EN, "ex_raw.mp3", "ex.mp3", rate="+0%", end_pad=0.20)
-    await generate_tts(f"{EXAMPLE_KO}", VOICE_KO, "exk_raw.mp3", "exk.mp3", rate="+12%", end_pad=0.25)
-    await generate_tts("매일 한 단어씩 외우려면 구독과 좋아요 부탁드려요", VOICE_KO, "sub_raw.mp3", "sub.mp3", rate="+15%", end_pad=0.25)
+    prepare_bg("final_bg.jpg")
 
-    d_w1, d_m1, d_w2 = get_duration("w1.mp3"), get_duration("m1.mp3"), get_duration("w2.mp3")
-    d_ex, d_exk, d_sub = get_duration("ex.mp3"), get_duration("exk.mp3"), get_duration("sub.mp3")
+    await generate_tts(HOOK, VOICE_KO, "h_raw.mp3", "h.mp3", rate="+12%", end_pad=0.20)
+    await generate_tts(f"{WORD}.", VOICE_EN, "w_raw.mp3", "w.mp3", rate="+0%", end_pad=0.20)
+    await generate_tts(MEANING, VOICE_KO, "m_raw.mp3", "m.mp3", rate="+12%", end_pad=0.25)
+    await generate_tts("문장 예시입니다.", VOICE_KO, "t_raw.mp3", "t.mp3", rate="+12%", end_pad=0.18)
+    await generate_tts(EXAMPLE, VOICE_EN, "ex_raw.mp3", "ex.mp3", rate="+2%", end_pad=0.18)
+    await generate_tts(EXAMPLE_KO, VOICE_KO, "exk_raw.mp3", "exk.mp3", rate="+12%", end_pad=0.30)
 
-    t_meaning = d_w1
-    t_example = d_w1 + d_m1 + d_w2
-    t_sub = t_example + d_ex + d_exk
-    total_dur = t_sub + d_sub
+    d_h, d_w, d_m = get_duration("h.mp3"), get_duration("w.mp3"), get_duration("m.mp3")
+    d_t, d_ex, d_exk = get_duration("t.mp3"), get_duration("ex.mp3"), get_duration("exk.mp3")
+
+    t_word = d_h
+    t_meaning = d_h + d_w
+    t_example = d_h + d_w + d_m + d_t
+    total_dur = t_example + d_ex + d_exk
 
     with open("concat.txt", "w") as f:
-        f.write("file 'w1.mp3'\nfile 'm1.mp3'\nfile 'w2.mp3'\nfile 'ex.mp3'\nfile 'exk.mp3'\nfile 'sub.mp3'\n")
+        f.write("file 'h.mp3'\nfile 'w.mp3'\nfile 'm.mp3'\nfile 't.mp3'\nfile 'ex.mp3'\nfile 'exk.mp3'\n")
     subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "concat.txt", "-c", "copy", "raw_audio.mp3"], check=True)
     subprocess.run(["ffmpeg", "-y", "-i", "raw_audio.mp3", "-filter:a", "loudnorm=I=-15:TP=-1.5:LRA=11", "full_audio.mp3"], check=True)
 
     font_path = next((p for p in ["/usr/share/fonts/truetype/nanum/NanumSquareRoundEB.ttf", "/usr/share/fonts/truetype/nanum/NanumGothicExtraBold.ttf", "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf"] if os.path.exists(p)), "")
-    with open("title.txt", "w", encoding="utf-8") as f: f.write(TITLE.replace("#Shorts", "").replace("#영단어", "").strip()[:16])
+    with open("hook.txt", "w", encoding="utf-8") as f: f.write(wrap_text(HOOK, 14))
     with open("word.txt", "w", encoding="utf-8") as f: f.write(WORD.strip())
+    with open("pron.txt", "w", encoding="utf-8") as f: f.write(f"[ {PRON.strip()} ]")
     with open("meaning.txt", "w", encoding="utf-8") as f: f.write(wrap_text(MEANING, 13))
-    with open("ex_en.txt", "w", encoding="utf-8") as f: f.write(wrap_text(EXAMPLE, 24))
-    with open("ex_ko.txt", "w", encoding="utf-8") as f: f.write(wrap_text(EXAMPLE_KO, 16))
-    with open("sub.txt", "w", encoding="utf-8") as f: f.write("매일 1단어! 구독 & 좋아요 부탁드려요!")
+    with open("ex_en.txt", "w", encoding="utf-8") as f: f.write(wrap_text(EXAMPLE, 23))
+    with open("ex_pron.txt", "w", encoding="utf-8") as f: f.write(wrap_text(EXAMPLE_PRON, 18))
+    with open("ex_ko.txt", "w", encoding="utf-8") as f: f.write(wrap_text(EXAMPLE_KO, 15))
 
     vf = (
-        f"drawbox=x=60:y=380:w=960:h=1120:color=#161B22@0.95:t=fill,"
-        f"drawbox=x=60:y=380:w=960:h=1120:color=#30363D:t=4,"
-        f"drawbox=x=80:y=200:w=920:h=125:color=#FFD600:t=fill,"
-        f"drawtext=fontfile={font_path}:textfile=title.txt:fontcolor=#111111:fontsize=54:x=(w-text_w)/2:y=235,"
-        f"drawtext=fontfile={font_path}:textfile=word.txt:fontcolor=#00E5FF:fontsize=115:borderw=5:bordercolor=black:x=(w-text_w)/2:y=460,"
-        f"drawbox=x=110:y=640:w=860:h=210:color=#21262D:t=fill:enable='gte(t,{t_meaning})',"
-        f"drawbox=x=110:y=640:w=860:h=210:color=#00E676:t=4:enable='gte(t,{t_meaning})',"
-        f"drawtext=fontfile={font_path}:textfile=meaning.txt:fontcolor=#00E676:fontsize=76:borderw=4:bordercolor=black:x=(w-text_w)/2:y=695:line_spacing=18:enable='gte(t,{t_meaning})',"
-        f"drawbox=x=100:y=910:w=880:h=520:color=#0D1117@0.85:t=fill:enable='gte(t,{t_example})',"
-        f"drawbox=x=100:y=910:w=880:h=520:color=#FFD600:t=3:enable='gte(t,{t_example})',"
-        f"drawtext=fontfile={font_path}:text='EXAMPLE':fontcolor=#FFD600:fontsize=44:x=(w-text_w)/2:y=945:enable='gte(t,{t_example})',"
-        f"drawtext=fontfile={font_path}:textfile=ex_en.txt:fontcolor=white:fontsize=58:borderw=4:bordercolor=black:x=(w-text_w)/2:y=1030:line_spacing=18:enable='gte(t,{t_example})',"
-        f"drawtext=fontfile={font_path}:textfile=ex_ko.txt:fontcolor=#BDBDBD:fontsize=50:borderw=3:bordercolor=black:x=(w-text_w)/2:y=1240:line_spacing=16:enable='gte(t,{t_example})',"
-        f"drawbox=x=80:y=1540:w=920:h=110:color=#FF1744@0.92:t=fill:enable='gte(t,{t_sub})',"
-        f"drawtext=fontfile={font_path}:textfile=sub.txt:fontcolor=white:fontsize=46:borderw=3:bordercolor=black:x=(w-text_w)/2:y=1572:enable='gte(t,{t_sub})'"
+        f"drawbox=x=70:y=200:w=940:h=190:color=#FFD600@0.95:t=fill,"
+        f"drawtext=fontfile={font_path}:textfile=hook.txt:fontcolor=#111111:fontsize=54:x=(w-text_w)/2:y=235:line_spacing=16,"
+        f"drawbox=x=60:y=430:w=960:h=520:color=#0D1117@0.72:t=fill:enable='gte(t,{t_word})',"
+        f"drawbox=x=60:y=430:w=960:h=520:color=#00E5FF@0.8:t=4:enable='gte(t,{t_word})',"
+        f"drawtext=fontfile={font_path}:textfile=word.txt:fontcolor=#00E5FF:fontsize=115:borderw=5:bordercolor=black:x=(w-text_w)/2:y=480:enable='gte(t,{t_word})',"
+        f"drawtext=fontfile={font_path}:textfile=pron.txt:fontcolor=#E0E0E0:fontsize=54:borderw=3:bordercolor=black:x=(w-text_w)/2:y=630:enable='gte(t,{t_word})',"
+        f"drawtext=fontfile={font_path}:textfile=meaning.txt:fontcolor=#00E676:fontsize=72:borderw=4:bordercolor=black:x=(w-text_w)/2:y=735:line_spacing=18:enable='gte(t,{t_meaning})',"
+        f"drawbox=x=60:y=990:w=960:h=630:color=#0D1117@0.78:t=fill:enable='gte(t,{t_example})',"
+        f"drawbox=x=60:y=990:w=960:h=630:color=#FFD600@0.8:t=4:enable='gte(t,{t_example})',"
+        f"drawtext=fontfile={font_path}:text='📌 문장 예시':fontcolor=#FFD600:fontsize=46:x=(w-text_w)/2:y=1025:enable='gte(t,{t_example})',"
+        f"drawtext=fontfile={font_path}:textfile=ex_en.txt:fontcolor=white:fontsize=58:borderw=4:bordercolor=black:x=(w-text_w)/2:y=1110:line_spacing=16:enable='gte(t,{t_example})',"
+        f"drawtext=fontfile={font_path}:textfile=ex_pron.txt:fontcolor=#80D8FF:fontsize=46:borderw=3:bordercolor=black:x=(w-text_w)/2:y=1310:line_spacing=14:enable='gte(t,{t_example})',"
+        f"drawtext=fontfile={font_path}:textfile=ex_ko.txt:fontcolor=#00E676:fontsize=52:borderw=3:bordercolor=black:x=(w-text_w)/2:y=1460:line_spacing=16:enable='gte(t,{t_example})'"
     )
     subprocess.run([
         "ffmpeg", "-y",
-        "-f", "lavfi", "-i", f"color=c=#0D1117:s=1080x1920:d={total_dur}",
+        "-loop", "1", "-i", "final_bg.jpg",
         "-i", "full_audio.mp3",
         "-vf", vf,
         "-t", f"{total_dur}",
@@ -83,7 +97,7 @@ async def main():
         "-c:a", "aac", "-shortest",
         "output.mp4"
     ], check=True)
-    print("여성 성우 영단어 쇼츠 렌더링 완료: output.mp4", flush=True)
+    print("예시 스타일 영단어 쇼츠 렌더링 완료: output.mp4", flush=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
