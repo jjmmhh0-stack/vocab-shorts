@@ -23,7 +23,7 @@ def get_duration(filename):
     cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", filename]
     return float(subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout)
 
-def wrap_text(text, max_chars=22):
+def wrap_text(text, max_chars=16):
     words, lines, current = text.split(), [], ""
     for w in words:
         if len(current) + len(w) + 1 <= max_chars: current = (current + " " + w).strip()
@@ -35,7 +35,7 @@ def prepare_bg(out_path="final_bg.jpg"):
     for fname in ["bg.jpg", "bg.png", "bg.jpeg"]:
         if os.path.exists(fname):
             img = Image.open(fname).convert("RGB").resize((1080, 1920), Image.LANCZOS)
-            ImageEnhance.Brightness(img).enhance(0.62).save(out_path, quality=92)
+            ImageEnhance.Brightness(img).enhance(0.55).save(out_path, quality=92)
             print(f"사용자 배경 적용 완료: {fname}", flush=True)
             return
     Image.new("RGB", (1080, 1920), color=(15, 23, 42)).save(out_path)
@@ -62,29 +62,40 @@ async def main():
     subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "concat.txt", "-c", "copy", "raw_audio.mp3"], check=True)
     subprocess.run(["ffmpeg", "-y", "-i", "raw_audio.mp3", "-filter:a", "loudnorm=I=-15:TP=-1.5:LRA=11", "full_audio.mp3"], check=True)
 
-    font_ko = next((p for p in ["/usr/share/fonts/truetype/nanum/NanumSquareRoundEB.ttf", "/usr/share/fonts/truetype/nanum/NanumGothicExtraBold.ttf"] if os.path.exists(p)), "")
-    font_ipa = next((p for p in ["/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc", "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc", "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf", font_ko] if os.path.exists(p)), font_ko)
+    font_ko = "/usr/share/fonts/truetype/nanum/NanumSquareRoundEB.ttf"
+    if not os.path.exists(font_ko):
+        font_ko = "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf"
+    font_ipa = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    if not os.path.exists(font_ipa):
+        font_ipa = font_ko
 
-    with open("hook.txt", "w", encoding="utf-8") as f: f.write(wrap_text(HOOK, 14))
+    ipa_part, kor_pron_part = PRON, ""
+    if "[" in PRON:
+        parts = PRON.split("[", 1)
+        ipa_part = parts[0].strip()
+        kor_pron_part = "[" + parts[1].strip()
+
+    with open("hook.txt", "w", encoding="utf-8") as f: f.write(wrap_text(HOOK, 13))
     with open("word.txt", "w", encoding="utf-8") as f: f.write(WORD.strip())
-    with open("pron.txt", "w", encoding="utf-8") as f: f.write(PRON.strip())
-    with open("meaning.txt", "w", encoding="utf-8") as f: f.write(wrap_text(MEANING, 13))
-    with open("ex_en.txt", "w", encoding="utf-8") as f: f.write(wrap_text(EXAMPLE, 23))
-    with open("ex_pron.txt", "w", encoding="utf-8") as f: f.write(wrap_text(EXAMPLE_PRON, 18))
+    with open("ipa.txt", "w", encoding="utf-8") as f: f.write(ipa_part)
+    with open("kor_pron.txt", "w", encoding="utf-8") as f: f.write(kor_pron_part)
+    with open("meaning.txt", "w", encoding="utf-8") as f: f.write(wrap_text(MEANING, 12))
+    with open("ex_en.txt", "w", encoding="utf-8") as f: f.write(wrap_text(EXAMPLE, 22))
+    with open("ex_pron.txt", "w", encoding="utf-8") as f: f.write(wrap_text(EXAMPLE_PRON, 17))
     with open("ex_ko.txt", "w", encoding="utf-8") as f: f.write(wrap_text(EXAMPLE_KO, 15))
 
     vf = (
-        f"drawtext=fontfile={font_ko}:textfile=hook.txt:fontcolor=white:fontsize=62:borderw=6:bordercolor=black:x=(w-text_w)/2:y=250:line_spacing=18,"
-        f"drawtext=fontfile={font_ko}:textfile=word.txt:fontcolor=#00E5FF:fontsize=125:borderw=7:bordercolor=black:x=(w-text_w)/2:y=530:enable='gte(t,{t_word})',"
-        f"drawtext=fontfile={font_ipa}:textfile=pron.txt:fontcolor=#E0E0E0:fontsize=50:borderw=4:bordercolor=black:x=(w-text_w)/2:y=690:enable='gte(t,{t_word})',"
-        f"drawtext=fontfile={font_ko}:textfile=meaning.txt:fontcolor=#FFD600:fontsize=76:borderw=6:bordercolor=black:x=(w-text_w)/2:y=790:line_spacing=20:enable='gte(t,{t_meaning})',"
-        f"drawbox=x=50:y=1030:w=980:h=560:color=black@0.45:t=fill:enable='gte(t,{t_example})',"
-        f"drawtext=fontfile={font_ko}:textfile=ex_en.txt:fontcolor=white:fontsize=60:borderw=5:bordercolor=black:x=(w-text_w)/2:y=1080:line_spacing=18:enable='gte(t,{t_example})',"
-        f"drawtext=fontfile={font_ko}:textfile=ex_pron.txt:fontcolor=#80D8FF:fontsize=48:borderw=4:bordercolor=black:x=(w-text_w)/2:y=1280:line_spacing=16:enable='gte(t,{t_example})',"
-        f"drawtext=fontfile={font_ko}:textfile=ex_ko.txt:fontcolor=#00E676:fontsize=54:borderw=4:bordercolor=black:x=(w-text_w)/2:y=1430:line_spacing=18:enable='gte(t,{t_example})'"
+        f"drawtext=fontfile={font_ko}:textfile=hook.txt:fontcolor=white:fontsize=66:borderw=7:bordercolor=black:x=(w-text_w)/2:y=240:line_spacing=20,"
+        f"drawtext=fontfile={font_ko}:textfile=word.txt:fontcolor=#00E5FF:fontsize=130:borderw=8:bordercolor=black:x=(w-text_w)/2:y=510:enable='gte(t,{t_word})',"
+        f"drawtext=fontfile={font_ipa}:textfile=ipa.txt:fontcolor=#E0E0E0:fontsize=46:borderw=4:bordercolor=black:x=(w-text_w)/2:y=675:enable='gte(t,{t_word})',"
+        f"drawtext=fontfile={font_ko}:textfile=kor_pron.txt:fontcolor=#B2EBF2:fontsize=50:borderw=4:bordercolor=black:x=(w-text_w)/2:y=740:enable='gte(t,{t_word})',"
+        f"drawtext=fontfile={font_ko}:textfile=meaning.txt:fontcolor=#FFD600:fontsize=78:borderw=7:bordercolor=black:x=(w-text_w)/2:y=840:line_spacing=20:enable='gte(t,{t_meaning})',"
+        f"drawtext=fontfile={font_ko}:textfile=ex_en.txt:fontcolor=white:fontsize=62:borderw=6:bordercolor=black:x=(w-text_w)/2:y=1080:line_spacing=18:enable='gte(t,{t_example})',"
+        f"drawtext=fontfile={font_ko}:textfile=ex_pron.txt:fontcolor=#80D8FF:fontsize=48:borderw=4:bordercolor=black:x=(w-text_w)/2:y=1290:line_spacing=16:enable='gte(t,{t_example})',"
+        f"drawtext=fontfile={font_ko}:textfile=ex_ko.txt:fontcolor=#00E676:fontsize=56:borderw=5:bordercolor=black:x=(w-text_w)/2:y=1450:line_spacing=18:enable='gte(t,{t_example})'"
     )
     subprocess.run(["ffmpeg", "-y", "-loop", "1", "-i", "final_bg.jpg", "-i", "full_audio.mp3", "-vf", vf, "-t", f"{total_dur}", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", "output.mp4"], check=True)
-    print("발음기호 완벽 지원 영단어 쇼츠 완료: output.mp4", flush=True)
+    print("영단어 쇼츠 렌더링 완벽 성공: output.mp4", flush=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
