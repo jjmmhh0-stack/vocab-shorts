@@ -5,7 +5,7 @@ import edge_tts
 TITLE = os.environ.get("SHORTS_TITLE", "10초 영단어 #Shorts")
 HOOK = os.environ.get("SHORTS_HOOK", "나한테 왜 이렇게 깐깐하게 구냐고 할 때")
 WORD = os.environ.get("SHORTS_WORD", "nitpicky")
-PRON = os.environ.get("SHORTS_PRON", "닛피키")
+PRON = os.environ.get("SHORTS_PRON", "/ˈnɪtˌpɪki/  [ 닛피키 ]")
 MEANING = os.environ.get("SHORTS_MEANING", "사소한 것에 얽매이는, 몹시 까다로운")
 EXAMPLE = os.environ.get("SHORTS_EXAMPLE", "Don't be so nitpicky about small details.")
 EXAMPLE_PRON = os.environ.get("SHORTS_EXAMPLE_PRON", "돈트 비 소 닛피키 어바웃 스몰 디테일즈")
@@ -42,7 +42,6 @@ def prepare_bg(out_path="final_bg.jpg"):
 
 async def main():
     prepare_bg("final_bg.jpg")
-
     await generate_tts(HOOK, VOICE_KO, "h_raw.mp3", "h.mp3", rate="+12%", end_pad=0.20)
     await generate_tts(f"{WORD}.", VOICE_EN, "w_raw.mp3", "w.mp3", rate="+0%", end_pad=0.20)
     await generate_tts(MEANING, VOICE_KO, "m_raw.mp3", "m.mp3", rate="+12%", end_pad=0.25)
@@ -66,7 +65,7 @@ async def main():
     font_path = next((p for p in ["/usr/share/fonts/truetype/nanum/NanumSquareRoundEB.ttf", "/usr/share/fonts/truetype/nanum/NanumGothicExtraBold.ttf", "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf"] if os.path.exists(p)), "")
     with open("hook.txt", "w", encoding="utf-8") as f: f.write(wrap_text(HOOK, 14))
     with open("word.txt", "w", encoding="utf-8") as f: f.write(WORD.strip())
-    with open("pron.txt", "w", encoding="utf-8") as f: f.write(f"[ {PRON.strip()} ]")
+    with open("pron.txt", "w", encoding="utf-8") as f: f.write(PRON.strip())
     with open("meaning.txt", "w", encoding="utf-8") as f: f.write(wrap_text(MEANING, 13))
     with open("ex_en.txt", "w", encoding="utf-8") as f: f.write(wrap_text(EXAMPLE, 23))
     with open("ex_pron.txt", "w", encoding="utf-8") as f: f.write(wrap_text(EXAMPLE_PRON, 18))
@@ -78,7 +77,7 @@ async def main():
         f"drawbox=x=60:y=430:w=960:h=520:color=#0D1117@0.72:t=fill:enable='gte(t,{t_word})',"
         f"drawbox=x=60:y=430:w=960:h=520:color=#00E5FF@0.8:t=4:enable='gte(t,{t_word})',"
         f"drawtext=fontfile={font_path}:textfile=word.txt:fontcolor=#00E5FF:fontsize=115:borderw=5:bordercolor=black:x=(w-text_w)/2:y=480:enable='gte(t,{t_word})',"
-        f"drawtext=fontfile={font_path}:textfile=pron.txt:fontcolor=#E0E0E0:fontsize=54:borderw=3:bordercolor=black:x=(w-text_w)/2:y=630:enable='gte(t,{t_word})',"
+        f"drawtext=fontfile={font_path}:textfile=pron.txt:fontcolor=#E0E0E0:fontsize=48:borderw=3:bordercolor=black:x=(w-text_w)/2:y=630:enable='gte(t,{t_word})',"
         f"drawtext=fontfile={font_path}:textfile=meaning.txt:fontcolor=#00E676:fontsize=72:borderw=4:bordercolor=black:x=(w-text_w)/2:y=735:line_spacing=18:enable='gte(t,{t_meaning})',"
         f"drawbox=x=60:y=990:w=960:h=630:color=#0D1117@0.78:t=fill:enable='gte(t,{t_example})',"
         f"drawbox=x=60:y=990:w=960:h=630:color=#FFD600@0.8:t=4:enable='gte(t,{t_example})',"
@@ -87,17 +86,8 @@ async def main():
         f"drawtext=fontfile={font_path}:textfile=ex_pron.txt:fontcolor=#80D8FF:fontsize=46:borderw=3:bordercolor=black:x=(w-text_w)/2:y=1310:line_spacing=14:enable='gte(t,{t_example})',"
         f"drawtext=fontfile={font_path}:textfile=ex_ko.txt:fontcolor=#00E676:fontsize=52:borderw=3:bordercolor=black:x=(w-text_w)/2:y=1460:line_spacing=16:enable='gte(t,{t_example})'"
     )
-    subprocess.run([
-        "ffmpeg", "-y",
-        "-loop", "1", "-i", "final_bg.jpg",
-        "-i", "full_audio.mp3",
-        "-vf", vf,
-        "-t", f"{total_dur}",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-shortest",
-        "output.mp4"
-    ], check=True)
-    print("예시 스타일 영단어 쇼츠 렌더링 완료: output.mp4", flush=True)
+    subprocess.run(["ffmpeg", "-y", "-loop", "1", "-i", "final_bg.jpg", "-i", "full_audio.mp3", "-vf", vf, "-t", f"{total_dur}", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", "output.mp4"], check=True)
+    print("영단어 쇼츠 렌더링 완료: output.mp4", flush=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
