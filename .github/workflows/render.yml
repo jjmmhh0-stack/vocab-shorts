@@ -1,9 +1,7 @@
 name: Render Vocab Shorts
-
 on:
   repository_dispatch:
     types: [make-shorts]
-
 jobs:
   build:
     runs-on: ubuntu-latest
