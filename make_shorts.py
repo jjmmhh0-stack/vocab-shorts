@@ -35,7 +35,7 @@ def prepare_bg(out_path="final_bg.jpg"):
     for fname in ["bg.jpg", "bg.png", "bg.jpeg"]:
         if os.path.exists(fname):
             img = Image.open(fname).convert("RGB").resize((1080, 1920), Image.LANCZOS)
-            ImageEnhance.Brightness(img).enhance(0.75).save(out_path, quality=92)
+            ImageEnhance.Brightness(img).enhance(0.62).save(out_path, quality=92)
             print(f"사용자 배경 적용 완료: {fname}", flush=True)
             return
     Image.new("RGB", (1080, 1920), color=(15, 23, 42)).save(out_path)
@@ -62,7 +62,9 @@ async def main():
     subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "concat.txt", "-c", "copy", "raw_audio.mp3"], check=True)
     subprocess.run(["ffmpeg", "-y", "-i", "raw_audio.mp3", "-filter:a", "loudnorm=I=-15:TP=-1.5:LRA=11", "full_audio.mp3"], check=True)
 
-    font_path = next((p for p in ["/usr/share/fonts/truetype/nanum/NanumSquareRoundEB.ttf", "/usr/share/fonts/truetype/nanum/NanumGothicExtraBold.ttf", "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf"] if os.path.exists(p)), "")
+    font_ko = next((p for p in ["/usr/share/fonts/truetype/nanum/NanumSquareRoundEB.ttf", "/usr/share/fonts/truetype/nanum/NanumGothicExtraBold.ttf"] if os.path.exists(p)), "")
+    font_ipa = next((p for p in ["/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc", "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc", "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf", font_ko] if os.path.exists(p)), font_ko)
+
     with open("hook.txt", "w", encoding="utf-8") as f: f.write(wrap_text(HOOK, 14))
     with open("word.txt", "w", encoding="utf-8") as f: f.write(WORD.strip())
     with open("pron.txt", "w", encoding="utf-8") as f: f.write(PRON.strip())
@@ -72,22 +74,17 @@ async def main():
     with open("ex_ko.txt", "w", encoding="utf-8") as f: f.write(wrap_text(EXAMPLE_KO, 15))
 
     vf = (
-        f"drawbox=x=70:y=200:w=940:h=190:color=#FFD600@0.95:t=fill,"
-        f"drawtext=fontfile={font_path}:textfile=hook.txt:fontcolor=#111111:fontsize=54:x=(w-text_w)/2:y=235:line_spacing=16,"
-        f"drawbox=x=60:y=430:w=960:h=520:color=#0D1117@0.72:t=fill:enable='gte(t,{t_word})',"
-        f"drawbox=x=60:y=430:w=960:h=520:color=#00E5FF@0.8:t=4:enable='gte(t,{t_word})',"
-        f"drawtext=fontfile={font_path}:textfile=word.txt:fontcolor=#00E5FF:fontsize=115:borderw=5:bordercolor=black:x=(w-text_w)/2:y=480:enable='gte(t,{t_word})',"
-        f"drawtext=fontfile={font_path}:textfile=pron.txt:fontcolor=#E0E0E0:fontsize=48:borderw=3:bordercolor=black:x=(w-text_w)/2:y=630:enable='gte(t,{t_word})',"
-        f"drawtext=fontfile={font_path}:textfile=meaning.txt:fontcolor=#00E676:fontsize=72:borderw=4:bordercolor=black:x=(w-text_w)/2:y=735:line_spacing=18:enable='gte(t,{t_meaning})',"
-        f"drawbox=x=60:y=990:w=960:h=630:color=#0D1117@0.78:t=fill:enable='gte(t,{t_example})',"
-        f"drawbox=x=60:y=990:w=960:h=630:color=#FFD600@0.8:t=4:enable='gte(t,{t_example})',"
-        f"drawtext=fontfile={font_path}:text='📌 문장 예시':fontcolor=#FFD600:fontsize=46:x=(w-text_w)/2:y=1025:enable='gte(t,{t_example})',"
-        f"drawtext=fontfile={font_path}:textfile=ex_en.txt:fontcolor=white:fontsize=58:borderw=4:bordercolor=black:x=(w-text_w)/2:y=1110:line_spacing=16:enable='gte(t,{t_example})',"
-        f"drawtext=fontfile={font_path}:textfile=ex_pron.txt:fontcolor=#80D8FF:fontsize=46:borderw=3:bordercolor=black:x=(w-text_w)/2:y=1310:line_spacing=14:enable='gte(t,{t_example})',"
-        f"drawtext=fontfile={font_path}:textfile=ex_ko.txt:fontcolor=#00E676:fontsize=52:borderw=3:bordercolor=black:x=(w-text_w)/2:y=1460:line_spacing=16:enable='gte(t,{t_example})'"
+        f"drawtext=fontfile={font_ko}:textfile=hook.txt:fontcolor=white:fontsize=62:borderw=6:bordercolor=black:x=(w-text_w)/2:y=250:line_spacing=18,"
+        f"drawtext=fontfile={font_ko}:textfile=word.txt:fontcolor=#00E5FF:fontsize=125:borderw=7:bordercolor=black:x=(w-text_w)/2:y=530:enable='gte(t,{t_word})',"
+        f"drawtext=fontfile={font_ipa}:textfile=pron.txt:fontcolor=#E0E0E0:fontsize=50:borderw=4:bordercolor=black:x=(w-text_w)/2:y=690:enable='gte(t,{t_word})',"
+        f"drawtext=fontfile={font_ko}:textfile=meaning.txt:fontcolor=#FFD600:fontsize=76:borderw=6:bordercolor=black:x=(w-text_w)/2:y=790:line_spacing=20:enable='gte(t,{t_meaning})',"
+        f"drawbox=x=50:y=1030:w=980:h=560:color=black@0.45:t=fill:enable='gte(t,{t_example})',"
+        f"drawtext=fontfile={font_ko}:textfile=ex_en.txt:fontcolor=white:fontsize=60:borderw=5:bordercolor=black:x=(w-text_w)/2:y=1080:line_spacing=18:enable='gte(t,{t_example})',"
+        f"drawtext=fontfile={font_ko}:textfile=ex_pron.txt:fontcolor=#80D8FF:fontsize=48:borderw=4:bordercolor=black:x=(w-text_w)/2:y=1280:line_spacing=16:enable='gte(t,{t_example})',"
+        f"drawtext=fontfile={font_ko}:textfile=ex_ko.txt:fontcolor=#00E676:fontsize=54:borderw=4:bordercolor=black:x=(w-text_w)/2:y=1430:line_spacing=18:enable='gte(t,{t_example})'"
     )
     subprocess.run(["ffmpeg", "-y", "-loop", "1", "-i", "final_bg.jpg", "-i", "full_audio.mp3", "-vf", vf, "-t", f"{total_dur}", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", "output.mp4"], check=True)
-    print("영단어 쇼츠 렌더링 완료: output.mp4", flush=True)
+    print("발음기호 완벽 지원 영단어 쇼츠 완료: output.mp4", flush=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
